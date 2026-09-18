@@ -1,0 +1,6 @@
+{
+  "name": "TalentAI",
+  "description": "Application interne de recherche de candidats, vivier de talents, scoring IA et conformité RGPD.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

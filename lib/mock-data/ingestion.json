@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cv-101",
+    "fileName": "CV_Sarah_Pichon_Lead_Frontend_2024.pdf",
+    "candidateName": "Sarah Pichon",
+    "fileSize": "1.8 Mo",
+    "uploadDate": "Aujourd'hui à 11:24",
+    "status": "termine",
+    "progressPercent": 100,
+    "extractedSkillsCount": 16,
+    "vectorStoreStatus": "Synchronisé",
+    "hashSha256": "7f83b12c98a4e...d81a"
+  },
+  {
+    "id": "cv-102",
+    "fileName": "Resume_Maxime_Renaud_Fullstack_FR.pdf",
+    "candidateName": "Maxime Renaud",
+    "fileSize": "2.1 Mo",
+    "uploadDate": "Hier à 16:45",
+    "status": "termine",
+    "progressPercent": 100,
+    "extractedSkillsCount": 12,
+    "vectorStoreStatus": "Synchronisé",
+    "hashSha256": "a3b4c5d6e7f8...9902"
+  },
+  {
+    "id": "cv-103",
+    "fileName": "Dossier_TechLead_Microservices_Ingest.pdf",
+    "candidateName": "Thomas Leroy",
+    "fileSize": "3.4 Mo",
+    "uploadDate": "Aujourd'hui à 09:15",
+    "status": "vectorisation",
+    "progressPercent": 68,
+    "extractedSkillsCount": 9,
+    "vectorStoreStatus": "En attente",
+    "hashSha256": "c882194b32fa...120f"
+  }
+]

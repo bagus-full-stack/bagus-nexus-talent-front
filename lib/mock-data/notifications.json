@@ -1,0 +1,29 @@
+[
+  {
+    "id": "notif-1",
+    "title": "Nouvelle ingestion terminée",
+    "description": "Le profil de Sarah Pichon a été indexé avec succès (16 compétences extraites).",
+    "timestamp": "Il y a 5 min",
+    "read": false,
+    "type": "success",
+    "link": "/search"
+  },
+  {
+    "id": "notif-2",
+    "title": "Alerte conformité RGPD (Art. 17)",
+    "description": "Demande de droit à l'oubli enregistrée pour le candidat #A214.",
+    "timestamp": "Il y a 42 min",
+    "read": false,
+    "type": "warning",
+    "link": "/gdpr"
+  },
+  {
+    "id": "notif-3",
+    "title": "Synchronisation Graphe IA",
+    "description": "Re-calcul automatique de 4 clusters ontologiques achevé.",
+    "timestamp": "Il y a 2h",
+    "read": true,
+    "type": "info",
+    "link": "/graph"
+  }
+]
