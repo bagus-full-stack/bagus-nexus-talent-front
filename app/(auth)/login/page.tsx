@@ -55,10 +55,6 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "recruteur@talentai.internal",
-      password: "password123",
-    },
   });
 
   const onSubmit = async (data: LoginFormData) => {
