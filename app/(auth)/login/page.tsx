@@ -44,7 +44,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const storeLogin = useAppStore((state) => state.login);
+  const setUser = useAppStore((state) => state.setUser);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -69,7 +69,7 @@ export default function LoginPage() {
       const response = await apiLogin(data.email, data.password);
 
       if (response.success && response.user) {
-        storeLogin(response.user.email, response.user.role);
+        setUser(response.user);
         router.push("/search");
       } else {
         setErrorMessage(response.error || "Email ou mot de passe incorrect");

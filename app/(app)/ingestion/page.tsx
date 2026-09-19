@@ -32,6 +32,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import {
   getCvs,
+  getCvDetail,
   uploadCv,
   validateCv,
   CvItem,
@@ -150,6 +151,9 @@ export default function IngestionPage() {
     queryKey: ["ingestion-cvs"],
     queryFn: getCvs,
     enabled: isAuthorized,
+    // Le pipeline d'ingestion est async (Celery) - on repolle tant que des CVs
+    // sont encore "en_cours" pour refléter leur statut réel côté serveur.
+    refetchInterval: (query) => (query.state.data?.some((cv) => cv.statut === "en_cours") ? 4000 : false),
   });
 
   // Mutation pour la validation ou le rejet d'un CV
@@ -185,22 +189,26 @@ export default function IngestionPage() {
   });
 
   // Gestion de l'ouverture du formulaire d'édition
-  const handleOpenEdit = (cv: CvItem) => {
-    setEditingCv(cv);
+  // La liste paginée ne contient pas les données extraites : on va chercher
+  // le détail complet (donnees_json) au moment de l'ouverture du dialog.
+  const handleOpenEdit = async (cv: CvItem) => {
+    const detail = await getCvDetail(cv.id);
+    setEditingCv(detail);
     resetForm({
-      nom: cv.extrait.nom || "",
-      poste: cv.extrait.poste || "",
-      experienceAnnees: cv.extrait.experienceAnnees ?? 0,
-      competences: cv.extrait.competences || "",
-      formation: cv.extrait.formation || "",
-      email: cv.extrait.email || "",
-      telephone: cv.extrait.telephone || "",
+      nom: detail.extrait.nom || "",
+      poste: detail.extrait.poste || "",
+      experienceAnnees: detail.extrait.experienceAnnees ?? 0,
+      competences: detail.extrait.competences || "",
+      formation: detail.extrait.formation || "",
+      email: detail.extrait.email || "",
+      telephone: detail.extrait.telephone || "",
     });
     setIsDialogOpen(true);
   };
 
-  const handleOpenView = (cv: CvItem) => {
-    setViewingCv(cv);
+  const handleOpenView = async (cv: CvItem) => {
+    const detail = await getCvDetail(cv.id);
+    setViewingCv(detail);
     setIsViewDialogOpen(true);
   };
 
@@ -280,31 +288,9 @@ export default function IngestionPage() {
               setUploadingFiles((prev) => prev.filter((it) => it.id !== fileId));
             }, 600);
 
-            // Simulation du statut intermédiaire "en_cours" -> "ok" ou "a_valider" après 5 secondes
-            setTimeout(() => {
-              queryClient.setQueryData<CvItem[]>(["ingestion-cvs"], (old = []) =>
-                old.map((item) => {
-                  if (item.id === newCv.id) {
-                    const randomOutcome =
-                      Math.random() > 0.35 ? "ok" : "a_valider";
-                    return {
-                      ...item,
-                      statut: randomOutcome,
-                      scoreConfiance:
-                        randomOutcome === "ok"
-                          ? 94
-                          : Math.floor(65 + Math.random() * 15),
-                      champsAVerifier:
-                        randomOutcome === "ok" ? [] : ["competences", "experienceAnnees"],
-                    };
-                  }
-                  return item;
-                })
-              );
-              toast.success("Pipeline d'analyse terminé", {
-                description: `L'indexation de « ${file.name} » est maintenant finalisée.`,
-              });
-            }, 4500);
+            // Le pipeline d'analyse (Celery) tourne côté serveur de façon
+            // asynchrone : le statut réel arrive via le polling de la query
+            // "ingestion-cvs" (refetchInterval), pas de simulation ici.
           })
           .catch(() => {
             setUploadingFiles((prev) =>

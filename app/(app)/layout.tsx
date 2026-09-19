@@ -7,20 +7,37 @@ import { Header } from "@/components/layout/header";
 import { useAppStore } from "@/lib/store";
 import { useIsClient } from "@/hooks/use-is-client";
 import { cn } from "@/lib/utils";
+import { getAccessToken } from "@/lib/api/client";
+import { getCurrentUser } from "@/lib/api/auth";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isSidebarCollapsed } = useAppStore();
+  const { isAuthenticated, isSidebarCollapsed, setUser } = useAppStore();
   const isClient = useIsClient();
+  const [isRehydrating, setIsRehydrating] = React.useState(true);
+
+  // Au premier chargement, tente de restaurer la session depuis le token stocké
+  // (le store repart toujours à isAuthenticated: false au montage).
+  useEffect(() => {
+    if (!isClient) return;
+    if (isAuthenticated || !getAccessToken()) {
+      setIsRehydrating(false);
+      return;
+    }
+    getCurrentUser().then((user) => {
+      if (user) setUser(user);
+      setIsRehydrating(false);
+    });
+  }, [isClient, isAuthenticated, setUser]);
 
   // Protection de route : redirection vers /login si non authentifié
   useEffect(() => {
-    if (isClient && !isAuthenticated) {
+    if (isClient && !isRehydrating && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isClient, isAuthenticated, router]);
+  }, [isClient, isRehydrating, isAuthenticated, router]);
 
-  if (!isClient) {
+  if (!isClient || isRehydrating) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-2">

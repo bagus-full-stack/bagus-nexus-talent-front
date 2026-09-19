@@ -1,15 +1,17 @@
-import { Candidat } from '@/types/candidat';
-import candidatsData from '@/lib/mock-data/candidats.json';
+import { apiFetch } from "@/lib/api/client";
+import { Candidat, ExperiencePro, FormationDiplome } from "@/types/candidat";
 
 export interface ExtractedFilter {
   id: string;
-  type: 'experience' | 'skill' | 'role' | 'availability' | 'location';
+  type: "experience" | "skill" | "role" | "availability" | "location";
   label: string;
   value: string;
 }
 
 /**
- * Extrait des filtres factices simulés à partir de mots-clés simples détectés dans la requête
+ * Extrait des filtres décoratifs affichés en chips sous la barre de recherche.
+ * Purement client-side : le backend fait sa propre extraction de filtres
+ * (voir SearchResponse.filtres_extraits) à partir du texte de la requête.
  */
 export function extractFilters(query: string): ExtractedFilter[] {
   if (!query || !query.trim()) return [];
@@ -17,53 +19,50 @@ export function extractFilters(query: string): ExtractedFilter[] {
   const filters: ExtractedFilter[] = [];
   const normalized = query.toLowerCase();
 
-  // Détection expérience : ex. "5 ans", "+5 ans", "≥ 3 ans"
   const expMatch = normalized.match(/(\+?\s*(\d+))\s*(?:ans|années|annees)/i);
   if (expMatch && expMatch[2]) {
     const years = expMatch[2];
     filters.push({
       id: `exp-${years}`,
-      type: 'experience',
+      type: "experience",
       label: `Expérience ≥ ${years} ans`,
       value: years,
     });
   }
 
-  // Détection compétences courantes
   const commonSkills = [
-    { key: 'react', label: 'React' },
-    { key: 'next', label: 'Next.js' },
-    { key: 'typescript', label: 'TypeScript' },
-    { key: 'python', label: 'Python' },
-    { key: 'node', label: 'Node.js' },
-    { key: 'tailwind', label: 'Tailwind CSS' },
-    { key: 'data scientist', label: 'Data Science' },
-    { key: 'machine learning', label: 'Machine Learning' },
-    { key: 'mlops', label: 'MLOps' },
-    { key: 'nlp', label: 'NLP' },
-    { key: 'sql', label: 'SQL' },
-    { key: 'graphql', label: 'GraphQL' },
-    { key: 'docker', label: 'Docker' },
+    { key: "react", label: "React" },
+    { key: "next", label: "Next.js" },
+    { key: "typescript", label: "TypeScript" },
+    { key: "python", label: "Python" },
+    { key: "node", label: "Node.js" },
+    { key: "tailwind", label: "Tailwind CSS" },
+    { key: "data scientist", label: "Data Science" },
+    { key: "machine learning", label: "Machine Learning" },
+    { key: "mlops", label: "MLOps" },
+    { key: "nlp", label: "NLP" },
+    { key: "sql", label: "SQL" },
+    { key: "graphql", label: "GraphQL" },
+    { key: "docker", label: "Docker" },
   ];
 
   for (const skill of commonSkills) {
     if (normalized.includes(skill.key)) {
       filters.push({
         id: `skill-${skill.key}`,
-        type: 'skill',
+        type: "skill",
         label: skill.label,
         value: skill.label,
       });
     }
   }
 
-  // Détection localisation
   const locations = [
-    { key: 'paris', label: 'Paris' },
-    { key: 'remote', label: 'Remote' },
-    { key: 'télétravail', label: 'Remote' },
-    { key: 'lyon', label: 'Lyon' },
-    { key: 'bordeaux', label: 'Bordeaux' },
+    { key: "paris", label: "Paris" },
+    { key: "remote", label: "Remote" },
+    { key: "télétravail", label: "Remote" },
+    { key: "lyon", label: "Lyon" },
+    { key: "bordeaux", label: "Bordeaux" },
   ];
 
   for (const loc of locations) {
@@ -71,7 +70,7 @@ export function extractFilters(query: string): ExtractedFilter[] {
       if (!filters.some((f) => f.label === loc.label)) {
         filters.push({
           id: `loc-${loc.key}`,
-          type: 'location',
+          type: "location",
           label: loc.label,
           value: loc.label,
         });
@@ -79,152 +78,159 @@ export function extractFilters(query: string): ExtractedFilter[] {
     }
   }
 
-  // Détection disponibilité
-  if (normalized.includes('immédiat') || normalized.includes('immediate') || normalized.includes('dispo')) {
+  if (normalized.includes("immédiat") || normalized.includes("immediate") || normalized.includes("dispo")) {
     filters.push({
-      id: 'avail-immediate',
-      type: 'availability',
-      label: 'Dispo immédiate',
-      value: 'immediate',
+      id: "avail-immediate",
+      type: "availability",
+      label: "Dispo immédiate",
+      value: "immediate",
     });
   }
 
   return filters;
 }
 
-/**
- * Recherche des candidats avec simulation de délai (600ms),
- * filtrage et attribution d'un score de pertinence dynamique.
- */
-export async function searchCandidats(query: string, activeFilters?: ExtractedFilter[]): Promise<Candidat[]> {
-  // Simule exactement 600ms de délai
-  await new Promise((resolve) => setTimeout(resolve, 600));
+interface BackendCompetence {
+  nom: string;
+}
 
-  const allCandidats = (candidatsData as Candidat[]).map((c) => ({
-    ...c,
-    nom: c.nom || c.name || '',
-    name: c.nom || c.name || '',
-    posteActuel: c.posteActuel || c.currentRole || '',
-    currentRole: c.posteActuel || c.currentRole || '',
-    entrepriseActuelle: c.entrepriseActuelle || c.company || '',
-    company: c.entrepriseActuelle || c.company || '',
-    anneesExperience: c.anneesExperience ?? c.experienceYears ?? 0,
-    experienceYears: c.anneesExperience ?? c.experienceYears ?? 0,
-    competences: c.competences || c.skills || [],
-    skills: c.competences || c.skills || [],
-    scorePertinence: c.scorePertinence ?? c.matchScore ?? 80,
-    matchScore: c.scorePertinence ?? c.matchScore ?? 80,
-    statutAnonymise: c.statutAnonymise ?? c.isAnonymized ?? false,
-    isAnonymized: c.statutAnonymise ?? c.isAnonymized ?? false,
-    justificationLLM: c.justificationLLM || c.aiRationale || '',
-    aiRationale: c.justificationLLM || c.aiRationale || '',
-  }));
+interface BackendDiplome {
+  intitule: string;
+  etablissement: string | null;
+  annee_obtention: number | null;
+}
 
-  if (!query && (!activeFilters || activeFilters.length === 0)) {
-    return allCandidats;
-  }
+interface BackendExperience {
+  poste: string;
+  entreprise: string | null;
+  date_debut: string;
+  date_fin: string | null;
+  description: string | null;
+}
 
-  const queryTerms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+interface CandidatDetailResponse {
+  id: string;
+  nom: string | null;
+  prenom: string | null;
+  email: string | null;
+  telephone: string | null;
+  localisation: string | null;
+  competences: BackendCompetence[];
+  diplomes: BackendDiplome[];
+  experiences: BackendExperience[];
+  annees_experience_cumulees: number | null;
+  statut_qualite: string;
+}
 
-  let filtered = allCandidats.filter((candidat) => {
-    // Si des filtres actifs sont spécifiés, vérifions-les
-    if (activeFilters && activeFilters.length > 0) {
-      for (const filter of activeFilters) {
-        if (filter.type === 'experience') {
-          const minExp = parseInt(filter.value, 10);
-          if (candidat.anneesExperience < minExp) return false;
-        }
-        if (filter.type === 'skill') {
-          const hasSkill = candidat.competences.some((s) =>
-            s.toLowerCase().includes(filter.value.toLowerCase())
-          );
-          if (!hasSkill) return false;
-        }
-        if (filter.type === 'location') {
-          const locMatch = (candidat.location || '').toLowerCase().includes(filter.value.toLowerCase());
-          if (!locMatch) return false;
-        }
-        if (filter.type === 'availability') {
-          if (filter.value === 'immediate' && !(candidat.availability || '').toLowerCase().includes('immédiate')) {
-            return false;
-          }
-        }
-      }
-    }
+interface CandidatRecommande {
+  candidat_id: string;
+  justification: string;
+  elements_cites: string[];
+  score: number | null;
+}
 
-    if (queryTerms.length === 0) return true;
+interface SearchResponse {
+  filtres_extraits: unknown;
+  candidats: CandidatRecommande[];
+  synthese: string;
+}
 
-    // Correspondance avec les termes de la requête
-    const searchableText = [
-      candidat.nom,
-      candidat.posteActuel,
-      candidat.entrepriseActuelle,
-      ...candidat.competences,
-      candidat.justificationLLM,
-      candidat.location || '',
-    ]
-      .join(' ')
-      .toLowerCase();
+function formatPeriode(exp: BackendExperience): string {
+  const start = exp.date_debut?.slice(0, 4) ?? "";
+  const end = exp.date_fin ? exp.date_fin.slice(0, 4) : "Présent";
+  return `${start} - ${end}`;
+}
 
-    return queryTerms.some((term) => searchableText.includes(term));
-  });
+// score n'est pas garanti normalisé par le backend (contrairement à
+// Competence.confiance qui est explicitement 0-1) : on accepte les deux formats.
+function normalizeScore(score: number | null): number {
+  if (score == null) return 0;
+  return Math.round(score <= 1 ? score * 100 : score);
+}
 
-  // Calcul d'un score de pertinence dynamique avec composante aléatoire réaliste
-  filtered = filtered.map((candidat) => {
-    let score = candidat.scorePertinence;
-    // Si la recherche mentionne explicitement son poste ou compétence clé
-    if (query) {
-      const qLower = query.toLowerCase();
-      if (candidat.competences.some((comp) => qLower.includes(comp.toLowerCase()))) {
-        score = Math.min(99, score + 4);
-      }
-      if (qLower.includes(candidat.posteActuel.toLowerCase())) {
-        score = Math.min(99, score + 5);
-      }
-    }
-    // Variation fine aléatoire pour le réalisme
-    const variance = Math.floor(Math.random() * 5) - 2;
-    const finalScore = Math.max(30, Math.min(99, score + variance));
+function toCandidat(detail: CandidatDetailResponse, reco: CandidatRecommande): Candidat {
+  const nom = detail.nom
+    ? `${detail.prenom ?? ""} ${detail.nom}`.trim()
+    : detail.nom ?? "";
+  const competences = detail.competences.map((c) => c.nom);
+  const anonymise = detail.email === null && detail.nom !== null;
+  const posteActuel = detail.experiences[0]?.poste ?? "";
+  const entrepriseActuelle = detail.experiences[0]?.entreprise ?? "";
+  const scorePertinence = normalizeScore(reco.score);
 
-    return {
-      ...candidat,
-      scorePertinence: finalScore,
-      matchScore: finalScore,
-    };
-  });
-
-  // Tri par pertinence décroissante
-  filtered.sort((a, b) => b.scorePertinence - a.scorePertinence);
-
-  return filtered;
+  return {
+    id: detail.id,
+    nom,
+    name: nom,
+    posteActuel,
+    currentRole: posteActuel,
+    entrepriseActuelle,
+    company: entrepriseActuelle,
+    anneesExperience: detail.annees_experience_cumulees ?? 0,
+    experienceYears: detail.annees_experience_cumulees ?? 0,
+    competences,
+    skills: competences,
+    scorePertinence,
+    matchScore: scorePertinence,
+    statutAnonymise: anonymise,
+    isAnonymized: anonymise,
+    justificationLLM: reco.justification,
+    aiRationale: reco.justification,
+    location: detail.localisation ?? undefined,
+    experiences: detail.experiences.map(
+      (e): ExperiencePro => ({
+        poste: e.poste,
+        entreprise: e.entreprise ?? "",
+        periode: formatPeriode(e),
+        description: e.description ?? undefined,
+      })
+    ),
+    diplomes: detail.diplomes.map(
+      (d): FormationDiplome => ({
+        diplome: d.intitule,
+        etablissement: d.etablissement ?? "",
+        annee: d.annee_obtention ? String(d.annee_obtention) : "",
+      })
+    ),
+    qualiteDonnees: detail.statut_qualite === "ok" ? "verifiee" : "a_valider",
+  };
 }
 
 /**
- * Fonction de rétrocompatibilité pour les composants existants
+ * Lance une recherche sémantique puis récupère le profil complet de chaque
+ * candidat recommandé (le endpoint /search ne renvoie que id + justification + score).
+ * activeFilters n'est pas envoyé au backend : celui-ci fait sa propre extraction
+ * de filtres à partir du texte de la requête (SearchResponse.filtres_extraits).
  */
+export async function searchCandidats(query: string, _activeFilters?: ExtractedFilter[]): Promise<Candidat[]> {
+  if (!query.trim()) return [];
+
+  const searchRes = await apiFetch<SearchResponse>("/api/v1/candidats/search", {
+    method: "POST",
+    body: JSON.stringify({ query }),
+  });
+
+  const details = await Promise.all(
+    searchRes.candidats.map((reco) =>
+      apiFetch<CandidatDetailResponse>(`/api/v1/candidats/${reco.candidat_id}`).catch(() => null)
+    )
+  );
+
+  return searchRes.candidats
+    .map((reco, i) => (details[i] ? toCandidat(details[i]!, reco) : null))
+    .filter((c): c is Candidat => c !== null);
+}
+
+/** Fonction de rétrocompatibilité pour les composants existants */
 export async function fetchCandidats(query?: string): Promise<Candidat[]> {
-  return searchCandidats(query || '');
+  return searchCandidats(query || "");
 }
 
 export async function fetchCandidatById(id: string): Promise<Candidat | null> {
-  const data = (candidatsData as Candidat[]).map((c) => ({
-    ...c,
-    nom: c.nom || c.name || '',
-    name: c.nom || c.name || '',
-    posteActuel: c.posteActuel || c.currentRole || '',
-    currentRole: c.posteActuel || c.currentRole || '',
-    entrepriseActuelle: c.entrepriseActuelle || c.company || '',
-    company: c.entrepriseActuelle || c.company || '',
-    anneesExperience: c.anneesExperience ?? c.experienceYears ?? 0,
-    experienceYears: c.anneesExperience ?? c.experienceYears ?? 0,
-    competences: c.competences || c.skills || [],
-    skills: c.competences || c.skills || [],
-    scorePertinence: c.scorePertinence ?? c.matchScore ?? 80,
-    matchScore: c.scorePertinence ?? c.matchScore ?? 80,
-    statutAnonymise: c.statutAnonymise ?? c.isAnonymized ?? false,
-    isAnonymized: c.statutAnonymise ?? c.isAnonymized ?? false,
-    justificationLLM: c.justificationLLM || c.aiRationale || '',
-    aiRationale: c.justificationLLM || c.aiRationale || '',
-  }));
-  return data.find((c) => c.id === id) || null;
+  try {
+    const detail = await apiFetch<CandidatDetailResponse>(`/api/v1/candidats/${id}`);
+    return toCandidat(detail, { candidat_id: id, justification: "", elements_cites: [], score: null });
+  } catch {
+    return null;
+  }
 }

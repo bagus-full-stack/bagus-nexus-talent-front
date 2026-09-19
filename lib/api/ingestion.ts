@@ -1,4 +1,4 @@
-import initialCvs from "@/lib/mock-data/cvs.json";
+import { apiFetch, uploadWithProgress } from "@/lib/api/client";
 
 export interface CvExtrait {
   nom: string;
@@ -22,96 +22,214 @@ export interface CvItem {
   extrait: CvExtrait;
 }
 
-// Mémoire locale pour les mutations au cours de la session
-let cvDatabase: CvItem[] = [...(initialCvs as CvItem[])];
+const STATUT_MAP: Record<string, CvItem["statut"]> = {
+  en_cours: "en_cours",
+  ok: "ok",
+  a_valider: "a_valider",
+  echec_parsing: "echec",
+  rejete: "echec",
+};
 
-/**
- * Récupère la liste complète des CVs avec délai réseau simulé
- */
-export async function getCvs(): Promise<CvItem[]> {
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  return [...cvDatabase];
+interface BackendCompetence {
+  nom: string;
+  niveau?: string | null;
+  confiance: number;
 }
 
-/**
- * Simule l'upload d'un CV avec progression granulaire via onProgress
- */
-export async function uploadCv(
-  file: File,
-  onProgress?: (percent: number) => void
-): Promise<CvItem> {
-  // Simulation de progression d'upload par étapes
-  const steps = [15, 35, 60, 85, 100];
-  for (const step of steps) {
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    if (onProgress) {
-      onProgress(step);
-    }
-  }
+interface BackendDiplome {
+  intitule: string;
+  etablissement?: string | null;
+  annee_obtention?: number | null;
+  confiance: number;
+}
 
-  // Création du nouvel élément au statut intermédiaire "en_cours"
-  const now = new Date();
-  const dateFormatted = `${String(now.getDate()).padStart(2, "0")}/${String(
-    now.getMonth() + 1
-  ).padStart(2, "0")}/${now.getFullYear()} à ${String(now.getHours()).padStart(
-    2,
-    "0"
-  )}:${String(now.getMinutes()).padStart(2, "0")}`;
+interface BackendExperience {
+  poste: string;
+  entreprise?: string | null;
+  date_debut: string;
+  date_fin?: string | null;
+  description?: string | null;
+  confiance: number;
+}
 
-  const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+interface BackendCandidatCV {
+  nom?: string | null;
+  prenom?: string | null;
+  email?: string | null;
+  telephone?: string | null;
+  localisation?: string | null;
+  langue_detectee?: string | null;
+  disponible_a_partir_de?: string | null;
+  competences: BackendCompetence[];
+  diplomes: BackendDiplome[];
+  experiences: BackendExperience[];
+  source_confiance: Record<string, number>;
+  statut_qualite: "ok" | "a_valider" | "echec_parsing";
+  champs_a_verifier: string[];
+}
 
-  const newCv: CvItem = {
-    id: `cv-${Date.now()}`,
-    nomFichier: file.name,
-    dateUpload: dateFormatted,
-    statut: "en_cours",
-    scoreConfiance: 88,
-    champsAVerifier: ["experienceAnnees"],
-    taille: `${(file.size / (1024 * 1024)).toFixed(1)} Mo`,
+interface CVListItem {
+  id: string;
+  nom_fichier: string;
+  date_upload: string;
+  statut: string;
+  score_confiance_global: number | null;
+}
+
+interface CVDetailResponse extends CVListItem {
+  donnees_json: BackendCandidatCV | null;
+  champs_a_verifier: string[] | null;
+}
+
+interface PaginatedCVs {
+  items: CVListItem[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+interface CVUploadResponse {
+  id: string;
+  statut: string;
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} à ${String(
+    d.getHours()
+  ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// score_confiance_global n'est pas garanti normalisé par le backend : on accepte 0-1 ou 0-100.
+function normalizeScore(score: number | null): number {
+  if (score == null) return 0;
+  return Math.round(score <= 1 ? score * 100 : score);
+}
+
+function toCvItemFromList(item: CVListItem): CvItem {
+  return {
+    id: item.id,
+    nomFichier: item.nom_fichier,
+    dateUpload: formatDate(item.date_upload),
+    statut: STATUT_MAP[item.statut] ?? "en_cours",
+    scoreConfiance: normalizeScore(item.score_confiance_global),
+    // La liste paginée ne renvoie pas donnees_json / champs_a_verifier -
+    // seul getCvDetail() (GET /ingestion/{id}) les fournit.
+    champsAVerifier: [],
+    extrait: { nom: "", email: "", telephone: "", poste: "", experienceAnnees: 0, competences: "", formation: "" },
+  };
+}
+
+function experienceAnneesFromExperiences(experiences: BackendExperience[]): number {
+  return experiences.reduce((sum, e) => {
+    const start = new Date(e.date_debut).getFullYear();
+    const end = e.date_fin ? new Date(e.date_fin).getFullYear() : new Date().getFullYear();
+    return sum + Math.max(0, end - start);
+  }, 0);
+}
+
+function toCvItemFromDetail(detail: CVDetailResponse): CvItem {
+  const d = detail.donnees_json;
+  return {
+    id: detail.id,
+    nomFichier: detail.nom_fichier,
+    dateUpload: formatDate(detail.date_upload),
+    statut: STATUT_MAP[detail.statut] ?? "en_cours",
+    scoreConfiance: normalizeScore(detail.score_confiance_global),
+    champsAVerifier: detail.champs_a_verifier ?? [],
     extrait: {
-      nom: cleanName || "Nouveau Candidat",
-      email: "candidat.extrait@domaine.fr",
-      telephone: "+33 6 00 00 00 00",
-      poste: "Candidat extrait par pipeline IA",
-      experienceAnnees: 3,
-      competences: "Extraction en cours...",
-      formation: "Diplôme en cours d'analyse",
+      nom: [d?.prenom, d?.nom].filter(Boolean).join(" "),
+      email: d?.email ?? "",
+      telephone: d?.telephone ?? "",
+      poste: d?.experiences?.[0]?.poste ?? "",
+      experienceAnnees: d?.experiences ? experienceAnneesFromExperiences(d.experiences) : 0,
+      competences: (d?.competences ?? []).map((c) => c.nom).join(", "),
+      formation: d?.diplomes?.[0]?.intitule ?? "",
     },
   };
+}
 
-  // Ajout au début de la base
-  cvDatabase = [newCv, ...cvDatabase];
-  return newCv;
+/** Récupère la liste des CVs. ponytail: une seule page de 200, pas de
+ * pagination serveur branchée - la page d'ingestion filtre/trie déjà côté client. */
+export async function getCvs(): Promise<CvItem[]> {
+  const res = await apiFetch<PaginatedCVs>("/api/v1/ingestion/?page=1&limit=200");
+  return res.items.map(toCvItemFromList);
+}
+
+/** Récupère les données extraites complètes d'un CV (absentes de la liste paginée). */
+export async function getCvDetail(id: string): Promise<CvItem> {
+  const detail = await apiFetch<CVDetailResponse>(`/api/v1/ingestion/${id}`);
+  return toCvItemFromDetail(detail);
+}
+
+export async function uploadCv(file: File, onProgress?: (percent: number) => void): Promise<CvItem> {
+  const formData = new FormData();
+  formData.append("files", file);
+  const [result] = await uploadWithProgress<CVUploadResponse[]>("/api/v1/ingestion/upload", formData, onProgress);
+
+  return {
+    id: result.id,
+    nomFichier: file.name,
+    dateUpload: formatDate(new Date().toISOString()),
+    statut: STATUT_MAP[result.statut] ?? "en_cours",
+    scoreConfiance: 0,
+    champsAVerifier: [],
+    taille: `${(file.size / (1024 * 1024)).toFixed(1)} Mo`,
+    extrait: { nom: file.name.replace(/\.[^/.]+$/, ""), email: "", telephone: "", poste: "", experienceAnnees: 0, competences: "", formation: "" },
+  };
 }
 
 /**
- * Valide ou corrige un CV en attente de vérification
+ * Valide ou rejette un CV. Le formulaire de correction du frontend est plat
+ * (CvExtrait) alors que le backend attend le schéma CandidatCV complet (imbriqué) -
+ * on part des données déjà extraites et on n'écrase que les champs corrigés.
  */
 export async function validateCv(
   id: string,
   correctedFields: Partial<CvExtrait>,
   action: "valider" | "rejeter" = "valider"
 ): Promise<CvItem> {
-  await new Promise((resolve) => setTimeout(resolve, 350));
-
-  const index = cvDatabase.findIndex((c) => c.id === id);
-  if (index === -1) {
-    throw new Error(`CV avec l'identifiant ${id} introuvable.`);
+  if (action === "rejeter") {
+    await apiFetch(`/api/v1/ingestion/${id}/reject`, { method: "DELETE" });
+    const detail = await getCvDetail(id);
+    return { ...detail, statut: "echec", motifEchec: "Rejeté manuellement lors de la revue RH" };
   }
 
-  const current = cvDatabase[index];
-  const updated: CvItem = {
-    ...current,
-    statut: action === "valider" ? "ok" : "echec",
-    scoreConfiance: action === "valider" ? Math.max(90, current.scoreConfiance) : 0,
-    champsAVerifier: action === "valider" ? [] : current.champsAVerifier,
-    motifEchec: action === "rejeter" ? "Rejeté manuellement lors de la revue RH" : undefined,
-    extrait: {
-      ...current.extrait,
-      ...correctedFields,
-    },
+  const current = await apiFetch<CVDetailResponse>(`/api/v1/ingestion/${id}`);
+  const d = current.donnees_json;
+
+  const experiences: BackendExperience[] = correctedFields.poste
+    ? [
+        {
+          ...(d?.experiences?.[0] ?? { date_debut: new Date().toISOString().slice(0, 10), confiance: 1 }),
+          poste: correctedFields.poste,
+        },
+        ...(d?.experiences?.slice(1) ?? []),
+      ]
+    : d?.experiences ?? [];
+
+  const donnees: BackendCandidatCV = {
+    ...d,
+    nom: correctedFields.nom || d?.nom || null,
+    email: correctedFields.email || d?.email || null,
+    telephone: correctedFields.telephone || d?.telephone || null,
+    competences: correctedFields.competences
+      ? correctedFields.competences
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((nom) => ({ nom, niveau: null, confiance: 1 }))
+      : d?.competences ?? [],
+    experiences,
+    diplomes: d?.diplomes ?? [],
+    source_confiance: d?.source_confiance ?? {},
+    statut_qualite: "ok",
+    champs_a_verifier: [],
   };
 
-  cvDatabase[index] = updated;
-  return updated;
+  const updated = await apiFetch<CVDetailResponse>(`/api/v1/ingestion/${id}/validate`, {
+    method: "PATCH",
+    body: JSON.stringify({ donnees }),
+  });
+  return toCvItemFromDetail(updated);
 }

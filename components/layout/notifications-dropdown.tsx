@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle, AlertOctagon } from 'lucide-react';
 import Link from 'next/link';
-import { fetchNotifications } from '@/lib/api/notifications';
+import { fetchNotifications, markAllAsRead as apiMarkAllAsRead } from '@/lib/api/notifications';
 import { NotificationItem, NotificationType } from '@/types/notification';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +30,7 @@ export function NotificationsDropdown() {
     setLocalNotifications((prev) =>
       (prev ?? notifications).map((n) => ({ ...n, read: true }))
     );
+    apiMarkAllAsRead().catch(() => {});
   };
 
   const getIcon = (type: NotificationType) => {

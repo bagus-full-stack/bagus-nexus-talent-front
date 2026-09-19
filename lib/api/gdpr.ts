@@ -1,8 +1,4 @@
-/**
- * API mockée pour la gestion des demandes de conformité RGPD (Droit à l'effacement Art. 17 / Anonymisation Art. 18)
- */
-
-import gdprRequestsRaw from "@/lib/mock-data/gdpr-requests.json";
+import { apiFetch, ApiError } from "@/lib/api/client";
 
 export type GdprType = "suppression" | "anonymisation";
 export type GdprStatut = "en_attente" | "en_cours" | "terminee" | "echec";
@@ -26,104 +22,95 @@ export interface GdprRequest {
   rapportTechnique?: GdprRapportTechnique;
 }
 
-// État mémoire persistant en session
-let gdprDatabase: GdprRequest[] = [...(gdprRequestsRaw as GdprRequest[])];
+interface BackendGdprRequest {
+  id: string;
+  candidat_id: string;
+  type: GdprType;
+  statut: GdprStatut;
+  date_creation: string;
+  date_execution: string | null;
+  resultat_json: { relations_supprimees?: number; vecteurs_supprimes?: number; hash_audit?: string } | null;
+  demande_par: string;
+}
 
-/**
- * Récupère l'ensemble des demandes RGPD avec un délai réseau simulé
- */
+interface PaginatedGDPRRequests {
+  items: BackendGdprRequest[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function toRapport(req: BackendGdprRequest): GdprRapportTechnique | undefined {
+  if (!req.resultat_json || req.statut !== "terminee") return undefined;
+  return {
+    relationsSupprimees: req.resultat_json.relations_supprimees ?? 0,
+    vecteursSupprimes: req.resultat_json.vecteurs_supprimes ?? 0,
+    // Non fourni par le backend (gdpr_service ne détruit pas de fichiers séparés du graphe/vectoriel).
+    fichiersPelles: 0,
+    hashAudit: req.resultat_json.hash_audit ?? "",
+    horodatage: req.date_execution ?? "",
+    dpoResponsable: req.demande_par,
+  };
+}
+
+// Le backend ne renvoie que candidat_id, pas le nom du candidat - un fetch par
+// requête est nécessaire pour l'afficher dans le registre (petit volume attendu).
+async function resolveCandidatNom(candidatId: string): Promise<string> {
+  try {
+    const detail = await apiFetch<{ nom: string | null; prenom: string | null }>(`/api/v1/candidats/${candidatId}`);
+    const nom = [detail.prenom, detail.nom].filter(Boolean).join(" ");
+    return nom || `Candidat #${candidatId.slice(0, 8)}`;
+  } catch {
+    return `Candidat #${candidatId.slice(0, 8)}`;
+  }
+}
+
+async function toGdprRequest(req: BackendGdprRequest): Promise<GdprRequest> {
+  return {
+    id: req.id,
+    candidatId: req.candidat_id,
+    candidatNom: await resolveCandidatNom(req.candidat_id),
+    type: req.type,
+    dateCreation: formatDate(req.date_creation),
+    statut: req.statut,
+    rapportTechnique: toRapport(req),
+  };
+}
+
 export async function getRequests(): Promise<GdprRequest[]> {
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  return [...gdprDatabase];
+  const res = await apiFetch<PaginatedGDPRRequests>("/api/v1/gdpr/?page=1&limit=200");
+  return Promise.all(res.items.map(toGdprRequest));
 }
 
-/**
- * Crée une nouvelle demande de suppression ou d'anonymisation
- */
-export async function createRequest(
-  candidatId: string,
-  candidatNom: string,
-  type: GdprType
-): Promise<GdprRequest> {
-  await new Promise((resolve) => setTimeout(resolve, 350));
-
-  const now = new Date();
-  const dateFormatted = `${now.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })} à ${now.toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
-
-  const newRequest: GdprRequest = {
-    id: `gdpr-req-${Date.now().toString().slice(-4)}`,
-    candidatId,
+export async function createRequest(candidatId: string, candidatNom: string, type: GdprType): Promise<GdprRequest> {
+  const req = await apiFetch<BackendGdprRequest>("/api/v1/gdpr/", {
+    method: "POST",
+    body: JSON.stringify({ candidat_id: candidatId, type }),
+  });
+  return {
+    id: req.id,
+    candidatId: req.candidat_id,
     candidatNom,
-    type,
-    dateCreation: dateFormatted,
-    statut: "en_attente",
+    type: req.type,
+    dateCreation: formatDate(req.date_creation),
+    statut: req.statut,
   };
-
-  gdprDatabase = [newRequest, ...gdprDatabase];
-  return newRequest;
 }
 
-/**
- * Exécute irréversiblement la demande RGPD.
- * Valide le mot de passe administrateur ("demo1234").
- */
-export async function executeRequest(
-  id: string,
-  confirmationPassword: string
-): Promise<GdprRapportTechnique> {
-  // Simule un délai d'exécution de 1.5s
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  const index = gdprDatabase.findIndex((r) => r.id === id);
-  if (index === -1) {
-    throw new Error("Demande introuvable.");
+export async function executeRequest(id: string, confirmationPassword: string): Promise<GdprRapportTechnique> {
+  try {
+    const req = await apiFetch<BackendGdprRequest>(`/api/v1/gdpr/${id}/execute`, {
+      method: "POST",
+      body: JSON.stringify({ password: confirmationPassword }),
+    });
+    const rapport = toRapport(req);
+    if (!rapport) throw new Error("Exécution incomplète : rapport indisponible.");
+    return rapport;
+  } catch (err) {
+    throw new Error(err instanceof ApiError ? err.message : "Mot de passe administrateur incorrect.");
   }
-
-  // Vérification du mot de passe administrateur
-  if (confirmationPassword !== "demo1234") {
-    // Si échec du mot de passe, on peut marquer la demande en échec
-    gdprDatabase[index] = {
-      ...gdprDatabase[index],
-      statut: "echec",
-      rapportTechnique: {
-        relationsSupprimees: 0,
-        vecteursSupprimes: 0,
-        fichiersPelles: 0,
-        hashAudit: "ERR_AUTH_ADMIN_REFUSED_HASH",
-        horodatage: new Date().toISOString(),
-        dpoResponsable: "Authentification Administrateur Échouée",
-      },
-    };
-    throw new Error("Mot de passe administrateur incorrect.");
-  }
-
-  // Génération du rapport d'audit cryptographique
-  const isSuppression = gdprDatabase[index].type === "suppression";
-  const fakeRandomHash = Array.from({ length: 64 }, () =>
-    Math.floor(Math.random() * 16).toString(16)
-  ).join("");
-
-  const rapport: GdprRapportTechnique = {
-    relationsSupprimees: isSuppression ? Math.floor(8 + Math.random() * 10) : 0,
-    vecteursSupprimes: Math.floor(1 + Math.random() * 3),
-    fichiersPelles: isSuppression ? 2 : 1,
-    hashAudit: `sha256:${fakeRandomHash}`,
-    horodatage: new Date().toISOString(),
-    dpoResponsable: "DPO / Admin Système",
-  };
-
-  gdprDatabase[index] = {
-    ...gdprDatabase[index],
-    statut: "terminee",
-    rapportTechnique: rapport,
-  };
-
-  return rapport;
 }
