@@ -26,9 +26,11 @@ import {
   AlertTriangle,
   ArrowRight,
   Network,
+  Loader2,
 } from "lucide-react";
-import graphDataRaw from "@/lib/mock-data/graph.json";
-import candidatsDataRaw from "@/lib/mock-data/candidats.json";
+import { useQuery } from "@tanstack/react-query";
+import { getSubgraph, GraphApiNode } from "@/lib/api/graph";
+import { fetchCandidatById } from "@/lib/api/candidats";
 import { Candidat } from "@/types/candidat";
 import { CandidateCard } from "@/components/search/candidate-card";
 import { CandidateDetailSheet } from "@/components/search/candidate-detail-sheet";
@@ -65,6 +67,7 @@ export interface GraphNode {
   id: string;
   type: NodeType;
   label: string;
+  properties: Record<string, unknown>;
   size?: number;
   val?: number;
   x?: number;
@@ -75,6 +78,13 @@ export interface GraphNode {
   neighbors?: Set<string>;
   links?: Set<any>;
 }
+
+const API_TYPE_TO_NODE_TYPE: Record<GraphApiNode["type"], NodeType> = {
+  Candidat: "candidat",
+  Competence: "competence",
+  Entreprise: "entreprise",
+  Diplome: "diplome",
+};
 
 export interface GraphLink {
   source: string | GraphNode;
@@ -170,11 +180,25 @@ export default function GraphPage() {
     return () => observer.disconnect();
   }, []);
 
+  // Chargement du graphe depuis le backend (Neo4j via /api/v1/graph/subgraph)
+  const {
+    data: graphData,
+    isLoading: isGraphLoading,
+    isError: isGraphError,
+  } = useQuery({
+    queryKey: ["graph-subgraph"],
+    queryFn: () => getSubgraph({ depth: 2 }),
+  });
+
   // Construction du graphe avec calcul des degrés et voisins
   const fullGraphData = useMemo(() => {
-    const nodes: GraphNode[] = graphDataRaw.nodes.map((n) => ({
-      ...n,
-      type: n.type as NodeType,
+    if (!graphData) return { nodes: [] as GraphNode[], links: [] as GraphLink[] };
+
+    const nodes: GraphNode[] = graphData.nodes.map((n) => ({
+      id: n.id,
+      type: API_TYPE_TO_NODE_TYPE[n.type] ?? "candidat",
+      label: n.label,
+      properties: n.properties,
       neighbors: new Set<string>(),
       links: new Set<any>(),
     }));
@@ -182,7 +206,7 @@ export default function GraphPage() {
     const nodeMap = new Map<string, GraphNode>();
     nodes.forEach((n) => nodeMap.set(n.id, n));
 
-    const links: GraphLink[] = graphDataRaw.links
+    const links: GraphLink[] = graphData.links
       .filter((l) => nodeMap.has(l.source) && nodeMap.has(l.target))
       .map((l) => {
         const sourceNode = nodeMap.get(l.source)!;
@@ -205,7 +229,7 @@ export default function GraphPage() {
     });
 
     return { nodes, links };
-  }, []);
+  }, [graphData]);
 
   // Décompte par type de nœud
   const countsByType = useMemo(() => {
@@ -320,26 +344,19 @@ export default function GraphPage() {
     }
   };
 
-  // Recherche du candidat complet si le nœud sélectionné est de type "candidat"
-  const selectedCandidatObj: Candidat | null = useMemo(() => {
-    if (!selectedNode || selectedNode.type !== "candidat") return null;
-    return (
-      (candidatsDataRaw as Candidat[]).find(
-        (c) => c.id === selectedNode.id || c.nom === selectedNode.label
-      ) || {
-        id: selectedNode.id,
-        nom: selectedNode.label,
-        posteActuel: "Ingénieur Spécialiste",
-        entrepriseActuelle: "Tech Partner",
-        anneesExperience: 5,
-        competences: ["React", "TypeScript", "Architecture"],
-        scorePertinence: 90,
-        statutAnonymise: false,
-        justificationLLM:
-          "Profil identifié dans le graphe de connaissances avec un fort maillage technique.",
-      }
-    );
-  }, [selectedNode]);
+  // Récupère la fiche complète du candidat sélectionné : le nœud de graphe ne
+  // porte que id/nom/prenom/email (propriétés Neo4j), le détail complet (compétences,
+  // expériences, diplômes) vient de l'API candidats via son id métier.
+  const candidatBusinessId =
+    selectedNode?.type === "candidat"
+      ? (selectedNode.properties.id as string | undefined)
+      : undefined;
+
+  const { data: selectedCandidatObj = null, isLoading: isCandidatDetailLoading } = useQuery({
+    queryKey: ["candidat-detail", candidatBusinessId],
+    queryFn: () => fetchCandidatById(candidatBusinessId!),
+    enabled: !!candidatBusinessId,
+  });
 
   // Candidats reliés si le nœud est une compétence, entreprise ou diplôme
   const connectedCandidates = useMemo(() => {
@@ -362,12 +379,9 @@ export default function GraphPage() {
     const list: Array<{ id: string; nom: string; nodeRef: GraphNode | null }> = [];
     candIds.forEach((id) => {
       const foundNode = filteredData.nodes.find((n) => n.id === id) || null;
-      const foundCandidate = (candidatsDataRaw as Candidat[]).find(
-        (c) => c.id === id
-      );
       list.push({
         id,
-        nom: foundCandidate?.nom || foundNode?.label || id,
+        nom: foundNode?.label || id,
         nodeRef: foundNode,
       });
     });
@@ -605,7 +619,24 @@ export default function GraphPage() {
             selectedNode ? "lg:col-span-8" : "lg:col-span-12"
           )}
         >
-          {filteredData.nodes.length === 0 ? (
+          {isGraphLoading ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="text-xs font-semibold text-muted-foreground">
+                Chargement du graphe...
+              </span>
+            </div>
+          ) : isGraphError ? (
+            <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center space-y-2">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+              <p className="text-sm font-semibold text-foreground">
+                Impossible de charger le graphe
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Vérifiez que le backend et Neo4j sont accessibles.
+              </p>
+            </div>
+          ) : filteredData.nodes.length === 0 ? (
             <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center space-y-3">
               <Network className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm font-semibold text-foreground">
@@ -732,33 +763,44 @@ export default function GraphPage() {
 
             <CardContent className="p-4 space-y-4">
               {/* CAS 1 : C'est un CANDIDAT -> Mini carte réutilisant candidate-card */}
-              {selectedNode.type === "candidat" && selectedCandidatObj ? (
-                <div className="space-y-3">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                    Profil candidat identifié :
-                  </span>
-                  <CandidateCard
-                    candidat={selectedCandidatObj}
-                    isSelected={true}
-                    onSelect={() => {}}
-                    onOpenDetails={(c) => {
-                      setDetailCandidate(c);
-                      setIsCandidateDetailOpen(true);
-                    }}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDetailCandidate(selectedCandidatObj);
-                      setIsCandidateDetailOpen(true);
-                    }}
-                    className="w-full text-xs gap-1.5 mt-2"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Ouvrir la fiche complète
-                  </Button>
-                </div>
+              {selectedNode.type === "candidat" ? (
+                isCandidatDetailLoading ? (
+                  <div className="flex flex-col items-center justify-center gap-2 py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-xs text-muted-foreground">Chargement du profil...</span>
+                  </div>
+                ) : selectedCandidatObj ? (
+                  <div className="space-y-3">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+                      Profil candidat identifié :
+                    </span>
+                    <CandidateCard
+                      candidat={selectedCandidatObj}
+                      isSelected={true}
+                      onSelect={() => {}}
+                      onOpenDetails={(c) => {
+                        setDetailCandidate(c);
+                        setIsCandidateDetailOpen(true);
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDetailCandidate(selectedCandidatObj);
+                        setIsCandidateDetailOpen(true);
+                      }}
+                      className="w-full text-xs gap-1.5 mt-2"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Ouvrir la fiche complète
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic py-8 text-center">
+                    Impossible de charger ce profil candidat.
+                  </p>
+                )
               ) : (
                 /* CAS 2 : C'est une compétence / entreprise / diplôme -> Nom + Liste des candidats liés */
                 <div className="space-y-4 text-xs">
@@ -842,18 +884,29 @@ export default function GraphPage() {
                 </SheetDescription>
               </SheetHeader>
 
-              {selectedNode.type === "candidat" && selectedCandidatObj ? (
-                <div className="space-y-3">
-                  <CandidateCard
-                    candidat={selectedCandidatObj}
-                    isSelected={true}
-                    onSelect={() => {}}
-                    onOpenDetails={(c) => {
-                      setDetailCandidate(c);
-                      setIsCandidateDetailOpen(true);
-                    }}
-                  />
-                </div>
+              {selectedNode.type === "candidat" ? (
+                isCandidatDetailLoading ? (
+                  <div className="flex flex-col items-center justify-center gap-2 py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-xs text-muted-foreground">Chargement du profil...</span>
+                  </div>
+                ) : selectedCandidatObj ? (
+                  <div className="space-y-3">
+                    <CandidateCard
+                      candidat={selectedCandidatObj}
+                      isSelected={true}
+                      onSelect={() => {}}
+                      onOpenDetails={(c) => {
+                        setDetailCandidate(c);
+                        setIsCandidateDetailOpen(true);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic py-6 text-center">
+                    Impossible de charger ce profil candidat.
+                  </p>
+                )
               ) : (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground">

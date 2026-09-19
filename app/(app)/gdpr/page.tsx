@@ -32,7 +32,7 @@ import {
   GdprRequest,
   GdprType,
 } from "@/lib/api/gdpr";
-import candidatsDataRaw from "@/lib/mock-data/candidats.json";
+import { searchCandidats } from "@/lib/api/candidats";
 import { Candidat } from "@/types/candidat";
 import { SkeletonTableRow } from "@/components/shared/skeleton-table-row";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -182,16 +182,18 @@ export default function GDPRPage() {
     },
   });
 
-  // Filtrage des candidats pour la recherche dans le Dialog 1
-  const filteredCandidates = useMemo(() => {
-    if (!candidateSearch.trim()) {
-      return (candidatsDataRaw as Candidat[]).slice(0, 5);
-    }
-    const q = candidateSearch.toLowerCase();
-    return (candidatsDataRaw as Candidat[])
-      .filter((c) => c.nom.toLowerCase().includes(q) || c.posteActuel.toLowerCase().includes(q))
-      .slice(0, 6);
+  // Recherche des candidats pour le Dialog 1 (recherche sémantique réelle, débouncée)
+  const [debouncedCandidateSearch, setDebouncedCandidateSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedCandidateSearch(candidateSearch.trim()), 400);
+    return () => clearTimeout(timer);
   }, [candidateSearch]);
+
+  const { data: filteredCandidates = [], isFetching: isCandidateSearchLoading } = useQuery({
+    queryKey: ["gdpr-candidat-search", debouncedCandidateSearch],
+    queryFn: () => searchCandidats(debouncedCandidateSearch),
+    enabled: debouncedCandidateSearch.length >= 2,
+  });
 
   // Filtrage des requêtes du tableau
   const filteredRequests = useMemo(() => {
@@ -582,7 +584,7 @@ Preuve d'effacement immuable certifiée.`;
                 <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Rechercher par nom (ex. Sarah Pichon)..."
+                  placeholder="Rechercher par nom, poste, compétence... (ex. Sarah Pichon)"
                   value={candidateSearch}
                   onChange={(e) => setCandidateSearch(e.target.value)}
                   className="h-9 pl-9 pr-3 text-xs rounded-lg"
@@ -591,6 +593,15 @@ Preuve d'effacement immuable certifiée.`;
 
               {/* Résultats de sélection rapide */}
               <div className="space-y-1 pt-1 max-h-40 overflow-y-auto">
+                {debouncedCandidateSearch.length < 2 ? (
+                  <p className="text-[11px] text-muted-foreground italic px-1 py-2">
+                    Saisissez au moins 2 caractères pour rechercher un candidat.
+                  </p>
+                ) : isCandidateSearchLoading ? (
+                  <p className="text-[11px] text-muted-foreground italic px-1 py-2">Recherche en cours...</p>
+                ) : filteredCandidates.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground italic px-1 py-2">Aucun candidat trouvé.</p>
+                ) : null}
                 {filteredCandidates.map((c) => {
                   const isSelected = selectedCandidate?.id === c.id;
                   return (

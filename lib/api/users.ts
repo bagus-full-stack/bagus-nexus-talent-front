@@ -1,14 +1,14 @@
 import { apiFetch } from "@/lib/api/client";
 
-export type MockUserRole = "recruteur" | "rh_interne" | "admin";
-export type MockUserStatut = "actif" | "invitation_en_attente";
+export type CollaborateurRole = "recruteur" | "rh_interne" | "admin";
+export type CollaborateurStatut = "actif" | "invitation_en_attente";
 
-export interface MockCollaborateur {
+export interface Collaborateur {
   id: string;
   nom: string;
   email: string;
-  role: MockUserRole;
-  statut: MockUserStatut;
+  role: CollaborateurRole;
+  statut: CollaborateurStatut;
   dateAjout: string;
 }
 
@@ -16,8 +16,8 @@ interface BackendUser {
   id: string;
   nom: string;
   email: string;
-  role: MockUserRole;
-  statut: MockUserStatut | "revoque";
+  role: CollaborateurRole;
+  statut: CollaborateurStatut | "revoque";
   date_creation: string;
 }
 
@@ -28,7 +28,7 @@ interface PaginatedUsers {
   total: number;
 }
 
-function toCollaborateur(u: BackendUser): MockCollaborateur {
+function toCollaborateur(u: BackendUser): Collaborateur {
   return {
     id: u.id,
     nom: u.nom,
@@ -41,12 +41,12 @@ function toCollaborateur(u: BackendUser): MockCollaborateur {
   };
 }
 
-export async function getUsers(): Promise<MockCollaborateur[]> {
+export async function getUsers(): Promise<Collaborateur[]> {
   const res = await apiFetch<PaginatedUsers>("/api/v1/users/?page=1&limit=200");
   return res.items.filter((u) => u.statut !== "revoque").map(toCollaborateur);
 }
 
-export async function inviteUser(email: string, role: MockUserRole): Promise<MockCollaborateur> {
+export async function inviteUser(email: string, role: CollaborateurRole): Promise<Collaborateur> {
   const user = await apiFetch<BackendUser>("/api/v1/users/invite", {
     method: "POST",
     body: JSON.stringify({ email, role }),
@@ -54,7 +54,7 @@ export async function inviteUser(email: string, role: MockUserRole): Promise<Moc
   return toCollaborateur(user);
 }
 
-export async function updateUserRole(id: string, newRole: MockUserRole): Promise<MockCollaborateur> {
+export async function updateUserRole(id: string, newRole: CollaborateurRole): Promise<Collaborateur> {
   const user = await apiFetch<BackendUser>(`/api/v1/users/${id}/role`, {
     method: "PATCH",
     body: JSON.stringify({ role: newRole }),

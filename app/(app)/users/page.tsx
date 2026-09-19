@@ -24,8 +24,8 @@ import {
   inviteUser,
   updateUserRole,
   revokeUser,
-  MockCollaborateur,
-  MockUserRole,
+  Collaborateur,
+  CollaborateurRole,
 } from "@/lib/api/users";
 import { SkeletonTableRow } from "@/components/shared/skeleton-table-row";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -69,7 +69,7 @@ const inviteSchema = z.object({
   role: z.enum(["recruteur", "rh_interne", "admin"] as const),
 });
 
-const ROLE_DESCRIPTIONS: Record<MockUserRole, string> = {
+const ROLE_DESCRIPTIONS: Record<CollaborateurRole, string> = {
   recruteur:
     "Accès standard : recherche sémantique de profils, consultation des CVs et création de synthèses.",
   rh_interne:
@@ -102,14 +102,14 @@ export default function UsersPage() {
   // État du Dialog "Inviter un collaborateur"
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<MockUserRole>("recruteur");
+  const [inviteRole, setInviteRole] = useState<CollaborateurRole>("recruteur");
   const [emailValidationError, setEmailValidationError] = useState<string | null>(
     null
   );
   const [apiInviteError, setApiInviteError] = useState<string | null>(null);
 
   // État du Dialog de révocation
-  const [userToRevoke, setUserToRevoke] = useState<MockCollaborateur | null>(
+  const [userToRevoke, setUserToRevoke] = useState<Collaborateur | null>(
     null
   );
 
@@ -132,10 +132,10 @@ export default function UsersPage() {
       role,
     }: {
       email: string;
-      role: MockUserRole;
+      role: CollaborateurRole;
     }) => inviteUser(email, role),
     onSuccess: (newUser) => {
-      queryClient.setQueryData<MockCollaborateur[]>(
+      queryClient.setQueryData<Collaborateur[]>(
         ["users-list"],
         (old = []) => [newUser, ...old]
       );
@@ -160,10 +160,10 @@ export default function UsersPage() {
       newRole,
     }: {
       id: string;
-      newRole: MockUserRole;
+      newRole: CollaborateurRole;
     }) => updateUserRole(id, newRole),
     onSuccess: (updated) => {
-      queryClient.setQueryData<MockCollaborateur[]>(
+      queryClient.setQueryData<Collaborateur[]>(
         ["users-list"],
         (old = []) => old.map((u) => (u.id === updated.id ? updated : u))
       );
@@ -182,7 +182,7 @@ export default function UsersPage() {
   const mutationRevoke = useMutation({
     mutationFn: (id: string) => revokeUser(id),
     onSuccess: (_, revokedId) => {
-      queryClient.setQueryData<MockCollaborateur[]>(
+      queryClient.setQueryData<Collaborateur[]>(
         ["users-list"],
         (old = []) => old.filter((u) => u.id !== revokedId)
       );
@@ -219,7 +219,7 @@ export default function UsersPage() {
     });
   };
 
-  const getRoleLabel = (role: MockUserRole) => {
+  const getRoleLabel = (role: CollaborateurRole) => {
     switch (role) {
       case "admin":
         return "Admin";
@@ -232,7 +232,7 @@ export default function UsersPage() {
     }
   };
 
-  const getRoleBadgeVariant = (role: MockUserRole) => {
+  const getRoleBadgeVariant = (role: CollaborateurRole) => {
     switch (role) {
       case "admin":
         return "border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300";
@@ -466,7 +466,7 @@ export default function UsersPage() {
                         <div className="w-32 text-left">
                           <Select
                             value={user.role}
-                            onValueChange={(val: MockUserRole) => {
+                            onValueChange={(val: CollaborateurRole) => {
                               if (val !== user.role) {
                                 mutationUpdateRole.mutate({
                                   id: user.id,
@@ -569,7 +569,7 @@ export default function UsersPage() {
               </label>
               <Select
                 value={inviteRole}
-                onValueChange={(val: MockUserRole) => setInviteRole(val)}
+                onValueChange={(val: CollaborateurRole) => setInviteRole(val)}
               >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue />

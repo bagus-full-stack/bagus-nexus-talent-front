@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Candidat, ExperiencePro, FormationDiplome } from "@/types/candidat";
+import { Candidat } from "@/types/candidat";
 import {
   Sheet,
   SheetContent,
@@ -108,62 +108,6 @@ function getLevelBadgeStyle(level: string) {
   }
 }
 
-/**
- * Génère des expériences factices cohérentes si non fournies
- */
-function getMockExperiences(candidat: Candidat): ExperiencePro[] {
-  if (candidat.experiences && candidat.experiences.length > 0) {
-    return candidat.experiences;
-  }
-
-  const poste = candidat.posteActuel || candidat.currentRole || "Ingénieur Logiciel";
-  const entreprise = candidat.entrepriseActuelle || candidat.company || "Scale-up";
-  const annees = candidat.anneesExperience ?? candidat.experienceYears ?? 4;
-  const competences = candidat.competences || candidat.skills || [];
-
-  return [
-    {
-      poste: poste,
-      entreprise: entreprise,
-      periode: `2022 - Présent (${annees > 2 ? 3 : annees} ans)`,
-      description: `Pilotage des initiatives techniques clés, déploiement continu et encadrement des bonnes pratiques. Conception d'architectures résilientes.`,
-      competences: competences.slice(0, 3),
-    },
-    {
-      poste: `Développeur ${poste.includes("Data") ? "Data / ML" : "Web & Mobile"} Confirmé`,
-      entreprise: "Agence Tech & Conseil Digital",
-      periode: "2019 - 2022 (3 ans)",
-      description: `Développement de fonctionnalités critiques sur applications métiers, refonte de modules complexes et intégration d'APIs tierces.`,
-      competences: competences.slice(2, 5),
-    },
-  ];
-}
-
-/**
- * Génère des diplômes factices cohérents si non fournis
- */
-function getMockDiplomes(candidat: Candidat): FormationDiplome[] {
-  if (candidat.diplomes && candidat.diplomes.length > 0) {
-    return candidat.diplomes;
-  }
-
-  const isData = (candidat.posteActuel || "").toLowerCase().includes("data");
-  return [
-    {
-      diplome: isData
-        ? "Master 2 Intelligence Artificielle & Science des Données"
-        : "Diplôme d'Ingénieur / Master Informatique & Systèmes Distribués",
-      etablissement: isData ? "Université Paris-Saclay" : "CentraleSupélec / École d'Ingénieurs",
-      annee: "2018",
-    },
-    {
-      diplome: "Licence / CPGE Mathématiques & Informatique",
-      etablissement: "Sorbonne Université",
-      annee: "2016",
-    },
-  ];
-}
-
 export function CandidateDetailSheet({
   candidat,
   open,
@@ -208,8 +152,8 @@ export function CandidateDetailSheet({
   const initiales = getInitials(candidat.nom || candidat.name || "", isAnonymized, candidat.id);
   const avatarColors = getAvatarColor(candidat.nom || candidat.name || candidat.id);
 
-  const experiences = getMockExperiences(candidat);
-  const diplomes = getMockDiplomes(candidat);
+  const experiences = candidat.experiences || [];
+  const diplomes = candidat.diplomes || [];
 
   const isVerified = candidat.qualiteDonnees === "verifiee" || !isAnonymized;
 
