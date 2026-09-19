@@ -10,6 +10,7 @@ import {
   Shield,
   Activity,
   CheckCircle2,
+  Menu,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ThemeToggle } from "./theme-toggle";
@@ -52,7 +53,11 @@ const ROUTE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   },
 };
 
-export function Header() {
+interface HeaderProps {
+  onOpenMobileSidebar: () => void;
+}
+
+export function Header({ onOpenMobileSidebar }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, logout, isSidebarCollapsed } = useAppStore();
@@ -88,6 +93,16 @@ export function Header() {
     >
       {/* Page Title & Context */}
       <div className="flex items-center gap-3 min-w-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          id="mobile-sidebar-toggle-btn"
+          onClick={onOpenMobileSidebar}
+          className="lg:hidden h-9 w-9 p-0 shrink-0 text-muted-foreground hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          aria-label="Ouvrir le menu de navigation"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <div className="flex flex-col">
           <h1 className="text-base sm:text-lg font-bold tracking-tight text-foreground truncate">
             {currentRouteMeta.title}

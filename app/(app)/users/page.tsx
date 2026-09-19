@@ -372,26 +372,157 @@ export default function UsersPage() {
             />
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rôle</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Date d&apos;ajout</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Desktop/tablette (≥md) : tableau complet */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nom</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Rôle</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead>Date d&apos;ajout</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => {
+                    const isCurrentLoggedIn = currentUser?.email === user.email;
+
+                    return (
+                      <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
+                        {/* Nom */}
+                        <TableCell className="font-semibold text-foreground">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                              {user.nom
+                                .split(" ")
+                                .map((n) => n[0])
+                                .slice(0, 2)
+                                .join("")
+                                .toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-foreground">
+                                {user.nom}
+                                {isCurrentLoggedIn && (
+                                  <span className="ml-2 text-[10px] text-muted-foreground font-normal">
+                                    (Vous)
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-[11px] font-mono text-muted-foreground">
+                                {user.id}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* Email */}
+                        <TableCell className="text-xs text-muted-foreground font-mono">
+                          {user.email}
+                        </TableCell>
+
+                        {/* Rôle avec Badge coloré */}
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[11px] font-semibold gap-1",
+                              getRoleBadgeVariant(user.role)
+                            )}
+                          >
+                            <Shield className="h-3 w-3" />
+                            {getRoleLabel(user.role)}
+                          </Badge>
+                        </TableCell>
+
+                        {/* Statut */}
+                        <TableCell>
+                          {user.statut === "actif" ? (
+                            <Badge
+                              variant="outline"
+                              className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-semibold gap-1"
+                            >
+                              <CheckCircle2 className="h-3 w-3" /> Actif
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[11px] font-semibold gap-1"
+                            >
+                              <Clock className="h-3 w-3" /> Invitation en attente
+                            </Badge>
+                          )}
+                        </TableCell>
+
+                        {/* Date d'ajout */}
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {user.dateAjout}
+                        </TableCell>
+
+                        {/* Actions : Select inline pour rôle + bouton Révoquer */}
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {/* Select inline de rôle */}
+                            <div className="w-32 text-left">
+                              <Select
+                                value={user.role}
+                                onValueChange={(val: CollaborateurRole) => {
+                                  if (val !== user.role) {
+                                    mutationUpdateRole.mutate({
+                                      id: user.id,
+                                      newRole: val,
+                                    });
+                                  }
+                                }}
+                                disabled={isCurrentLoggedIn || mutationUpdateRole.isPending}
+                              >
+                                <SelectTrigger className="h-7 text-[11px] bg-background">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent align="end">
+                                  <SelectItem value="recruteur">Recruteur</SelectItem>
+                                  <SelectItem value="rh_interne">RH Interne</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Bouton Révoquer */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setUserToRevoke(user)}
+                              disabled={isCurrentLoggedIn}
+                              title={
+                                isCurrentLoggedIn
+                                  ? "Vous ne pouvez pas révoquer votre propre compte"
+                                  : "Révoquer l'accès"
+                              }
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile (<md) : liste de cartes empilées, table 6 colonnes + select inline illisibles en scroll horizontal */}
+            <div className="md:hidden divide-y divide-border">
               {filteredUsers.map((user) => {
                 const isCurrentLoggedIn = currentUser?.email === user.email;
 
                 return (
-                  <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
-                    {/* Nom */}
-                    <TableCell className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2.5">
+                  <div key={user.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
                           {user.nom
                             .split(" ")
@@ -400,8 +531,8 @@ export default function UsersPage() {
                             .join("")
                             .toUpperCase()}
                         </div>
-                        <div>
-                          <p className="text-xs font-bold text-foreground">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">
                             {user.nom}
                             {isCurrentLoggedIn && (
                               <span className="ml-2 text-[10px] text-muted-foreground font-normal">
@@ -409,20 +540,30 @@ export default function UsersPage() {
                               </span>
                             )}
                           </p>
-                          <p className="text-[11px] font-mono text-muted-foreground">
-                            {user.id}
+                          <p className="text-[11px] text-muted-foreground font-mono truncate">
+                            {user.email}
                           </p>
                         </div>
                       </div>
-                    </TableCell>
 
-                    {/* Email */}
-                    <TableCell className="text-xs text-muted-foreground font-mono">
-                      {user.email}
-                    </TableCell>
+                      {user.statut === "actif" ? (
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-semibold gap-1"
+                        >
+                          <CheckCircle2 className="h-3 w-3" /> Actif
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[11px] font-semibold gap-1"
+                        >
+                          <Clock className="h-3 w-3" /> En attente
+                        </Badge>
+                      )}
+                    </div>
 
-                    {/* Rôle avec Badge coloré */}
-                    <TableCell>
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                       <Badge
                         variant="outline"
                         className={cn(
@@ -433,82 +574,54 @@ export default function UsersPage() {
                         <Shield className="h-3 w-3" />
                         {getRoleLabel(user.role)}
                       </Badge>
-                    </TableCell>
+                      <span>Ajouté le {user.dateAjout}</span>
+                    </div>
 
-                    {/* Statut */}
-                    <TableCell>
-                      {user.statut === "actif" ? (
-                        <Badge
-                          variant="outline"
-                          className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-semibold gap-1"
+                    <div className="flex items-center gap-2 pt-1">
+                      <div className="flex-1">
+                        <Select
+                          value={user.role}
+                          onValueChange={(val: CollaborateurRole) => {
+                            if (val !== user.role) {
+                              mutationUpdateRole.mutate({
+                                id: user.id,
+                                newRole: val,
+                              });
+                            }
+                          }}
+                          disabled={isCurrentLoggedIn || mutationUpdateRole.isPending}
                         >
-                          <CheckCircle2 className="h-3 w-3" /> Actif
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[11px] font-semibold gap-1"
-                        >
-                          <Clock className="h-3 w-3" /> Invitation en attente
-                        </Badge>
-                      )}
-                    </TableCell>
-
-                    {/* Date d'ajout */}
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {user.dateAjout}
-                    </TableCell>
-
-                    {/* Actions : Select inline pour rôle + bouton Révoquer */}
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {/* Select inline de rôle */}
-                        <div className="w-32 text-left">
-                          <Select
-                            value={user.role}
-                            onValueChange={(val: CollaborateurRole) => {
-                              if (val !== user.role) {
-                                mutationUpdateRole.mutate({
-                                  id: user.id,
-                                  newRole: val,
-                                });
-                              }
-                            }}
-                            disabled={isCurrentLoggedIn || mutationUpdateRole.isPending}
-                          >
-                            <SelectTrigger className="h-7 text-[11px] bg-background">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent align="end">
-                              <SelectItem value="recruteur">Recruteur</SelectItem>
-                              <SelectItem value="rh_interne">RH Interne</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Bouton Révoquer */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setUserToRevoke(user)}
-                          disabled={isCurrentLoggedIn}
-                          title={
-                            isCurrentLoggedIn
-                              ? "Vous ne pouvez pas révoquer votre propre compte"
-                              : "Révoquer l'accès"
-                          }
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                          <SelectTrigger className="h-8 text-[11px] bg-background w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="recruteur">Recruteur</SelectItem>
+                            <SelectItem value="rh_interne">RH Interne</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </TableCell>
-                  </TableRow>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setUserToRevoke(user)}
+                        disabled={isCurrentLoggedIn}
+                        title={
+                          isCurrentLoggedIn
+                            ? "Vous ne pouvez pas révoquer votre propre compte"
+                            : "Révoquer l'accès"
+                        }
+                        className="h-8 w-8 p-0 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
-            </TableBody>
-          </Table>
+            </div>
+          </>
         )}
       </Card>
 

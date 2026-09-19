@@ -25,7 +25,7 @@ app/
     users/             gestion des collaborateurs (admin)
     settings/          préférences utilisateur et notifications
 components/
-  layout/           sidebar, topbar, dropdown notifications
+  layout/           sidebar (fixe desktop / drawer mobile), topbar, dropdown notifications
   search/ shared/ ui/  composants métier et primitives shadcn
 lib/
   api/               un module par domaine, tous les appels HTTP vers le backend FastAPI
@@ -79,6 +79,14 @@ L'application est servie sur `http://localhost:3000`.
 | Variable | Rôle |
 |---|---|
 | `NEXT_PUBLIC_API_URL` | URL de base de l'API FastAPI (défaut : `http://localhost:8000`) |
+
+## Responsive
+
+L'interface est utilisable de mobile à desktop :
+
+- **Sidebar** : fixe et rétractable (`w-16`/`w-60`) à partir de `lg` (1024px) ; en dessous, elle devient un drawer (`Sheet` shadcn) ouvert via le bouton hamburger du header et fermé automatiquement à la navigation.
+- **Tableaux back-office** (`users`, `gdpr`, `ingestion`) : tableau complet à partir de `md` (768px), liste de cartes empilées en dessous — le tableau brut n'est pas praticable sur petit écran dès qu'il contient des contrôles interactifs (select, boutons d'action).
+- Formulaires et grilles de statistiques passent en colonne unique ou réduite sous `sm`/`md` selon leur densité.
 
 ## Rôles et accès
 

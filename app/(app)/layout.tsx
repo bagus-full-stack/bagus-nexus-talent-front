@@ -15,6 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isSidebarCollapsed, setUser } = useAppStore();
   const isClient = useIsClient();
   const [isRehydrating, setIsRehydrating] = React.useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
   // Au premier chargement, tente de restaurer la session depuis le token stocké
   // (le store repart toujours à isAuthenticated: false au montage).
@@ -54,18 +55,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      {/* Sidebar fixe à gauche (240px rétractable en 64px) */}
-      <Sidebar />
+      {/* Sidebar : fixe à gauche (240px rétractable en 64px) dès lg, drawer en dessous */}
+      <Sidebar
+        mobileOpen={isMobileSidebarOpen}
+        onMobileOpenChange={setIsMobileSidebarOpen}
+      />
 
-      {/* Zone principale à droite de la sidebar */}
+      {/* Zone principale à droite de la sidebar (pleine largeur sous lg) */}
       <div
         className={cn(
           "flex flex-1 flex-col transition-all duration-300 ease-in-out min-w-0",
-          isSidebarCollapsed ? "pl-16" : "pl-60"
+          isSidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
         )}
       >
         {/* Header supérieur avec titre, notifications, thème et profil */}
-        <Header />
+        <Header onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)} />
 
         {/* Zone de contenu scrollable */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">

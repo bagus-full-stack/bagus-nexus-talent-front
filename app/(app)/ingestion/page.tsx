@@ -732,186 +732,283 @@ export default function IngestionPage() {
           </div>
         ) : (
           <div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead
-                    onClick={() => handleSort("nomFichier")}
-                    className="cursor-pointer select-none hover:text-foreground transition-colors"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Nom du fichier</span>
-                      {sortField === "nomFichier" ? (
-                        sortOrder === "asc" ? (
-                          <ArrowUp className="h-3.5 w-3.5 text-primary" />
+            {/* Desktop/tablette (≥md) : tableau triable complet */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead
+                      onClick={() => handleSort("nomFichier")}
+                      className="cursor-pointer select-none hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Nom du fichier</span>
+                        {sortField === "nomFichier" ? (
+                          sortOrder === "asc" ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                          )
                         ) : (
-                          <ArrowDown className="h-3.5 w-3.5 text-primary" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                      )}
-                    </div>
-                  </TableHead>
+                          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
 
-                  <TableHead
-                    onClick={() => handleSort("dateUpload")}
-                    className="cursor-pointer select-none hover:text-foreground transition-colors"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Date</span>
-                      {sortField === "dateUpload" ? (
-                        sortOrder === "asc" ? (
-                          <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                    <TableHead
+                      onClick={() => handleSort("dateUpload")}
+                      className="cursor-pointer select-none hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Date</span>
+                        {sortField === "dateUpload" ? (
+                          sortOrder === "asc" ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                          )
                         ) : (
-                          <ArrowDown className="h-3.5 w-3.5 text-primary" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                      )}
-                    </div>
-                  </TableHead>
+                          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
 
-                  <TableHead
-                    onClick={() => handleSort("statut")}
-                    className="cursor-pointer select-none hover:text-foreground transition-colors"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Statut</span>
-                      {sortField === "statut" ? (
-                        sortOrder === "asc" ? (
-                          <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                    <TableHead
+                      onClick={() => handleSort("statut")}
+                      className="cursor-pointer select-none hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Statut</span>
+                        {sortField === "statut" ? (
+                          sortOrder === "asc" ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                          )
                         ) : (
-                          <ArrowDown className="h-3.5 w-3.5 text-primary" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                      )}
-                    </div>
-                  </TableHead>
+                          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
 
-                  <TableHead
-                    onClick={() => handleSort("scoreConfiance")}
-                    className="cursor-pointer select-none hover:text-foreground transition-colors"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Score de confiance</span>
-                      {sortField === "scoreConfiance" ? (
-                        sortOrder === "asc" ? (
-                          <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                    <TableHead
+                      onClick={() => handleSort("scoreConfiance")}
+                      className="cursor-pointer select-none hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Score de confiance</span>
+                        {sortField === "scoreConfiance" ? (
+                          sortOrder === "asc" ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                          )
                         ) : (
-                          <ArrowDown className="h-3.5 w-3.5 text-primary" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                      )}
-                    </div>
-                  </TableHead>
+                          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
 
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
 
-              <TableBody>
-                {paginatedCvs.map((cv) => (
-                  <TableRow key={cv.id} className="hover:bg-muted/40 transition-colors">
-                    <TableCell className="font-medium text-foreground">
-                      <div className="flex items-center gap-2.5 max-w-[280px] sm:max-w-none">
-                        <FileText className="h-4 w-4 text-primary shrink-0" />
-                        <div className="truncate">
-                          <p className="truncate text-xs font-semibold">{cv.nomFichier}</p>
-                          {cv.extrait?.nom && (
-                            <p className="text-[11px] text-muted-foreground truncate">
-                              {cv.extrait.nom} {cv.extrait.poste ? `• ${cv.extrait.poste}` : ""}
-                            </p>
-                          )}
+                <TableBody>
+                  {paginatedCvs.map((cv) => (
+                    <TableRow key={cv.id} className="hover:bg-muted/40 transition-colors">
+                      <TableCell className="font-medium text-foreground">
+                        <div className="flex items-center gap-2.5 max-w-[280px] sm:max-w-none">
+                          <FileText className="h-4 w-4 text-primary shrink-0" />
+                          <div className="truncate">
+                            <p className="truncate text-xs font-semibold">{cv.nomFichier}</p>
+                            {cv.extrait?.nom && (
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {cv.extrait.nom} {cv.extrait.poste ? `• ${cv.extrait.poste}` : ""}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {cv.dateUpload}
-                    </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {cv.dateUpload}
+                      </TableCell>
 
-                    <TableCell>
-                      {cv.statut === "ok" && (
-                        <Badge
-                          variant="outline"
-                          className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-semibold gap-1 text-[11px]"
-                        >
-                          <CheckCircle2 className="h-3 w-3" /> Conforme
-                        </Badge>
-                      )}
-                      {cv.statut === "a_valider" && (
-                        <Badge
-                          variant="outline"
-                          className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-semibold gap-1 text-[11px]"
-                        >
-                          <Clock className="h-3 w-3" /> À valider (
-                          {cv.champsAVerifier.length})
-                        </Badge>
-                      )}
-                      {cv.statut === "echec" && (
-                        <Badge
-                          variant="outline"
-                          className="bg-destructive/10 text-destructive border-destructive/30 font-semibold gap-1 text-[11px]"
-                        >
-                          <XCircle className="h-3 w-3" /> Échec OCR
-                        </Badge>
-                      )}
-                      {cv.statut === "en_cours" && (
-                        <Badge
-                          variant="outline"
-                          className="bg-primary/10 text-primary border-primary/30 font-semibold gap-1 text-[11px] animate-pulse"
-                        >
-                          <RefreshCw className="h-3 w-3 animate-spin" /> En cours d&apos;analyse
-                        </Badge>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <ScoreBadge
-                          value={cv.scoreConfiance}
-                          size="sm"
-                          showLabel={false}
-                        />
-                        <span className="text-xs font-mono font-medium text-foreground">
-                          {cv.scoreConfiance}%
-                        </span>
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenView(cv)}
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          title="Aperçu du document"
-                          aria-label="Aperçu"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-
+                      <TableCell>
+                        {cv.statut === "ok" && (
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-semibold gap-1 text-[11px]"
+                          >
+                            <CheckCircle2 className="h-3 w-3" /> Conforme
+                          </Badge>
+                        )}
                         {cv.statut === "a_valider" && (
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-semibold gap-1 text-[11px]"
+                          >
+                            <Clock className="h-3 w-3" /> À valider (
+                            {cv.champsAVerifier.length})
+                          </Badge>
+                        )}
+                        {cv.statut === "echec" && (
+                          <Badge
+                            variant="outline"
+                            className="bg-destructive/10 text-destructive border-destructive/30 font-semibold gap-1 text-[11px]"
+                          >
+                            <XCircle className="h-3 w-3" /> Échec OCR
+                          </Badge>
+                        )}
+                        {cv.statut === "en_cours" && (
+                          <Badge
+                            variant="outline"
+                            className="bg-primary/10 text-primary border-primary/30 font-semibold gap-1 text-[11px] animate-pulse"
+                          >
+                            <RefreshCw className="h-3 w-3 animate-spin" /> En cours d&apos;analyse
+                          </Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <ScoreBadge
+                            value={cv.scoreConfiance}
+                            size="sm"
+                            showLabel={false}
+                          />
+                          <span className="text-xs font-mono font-medium text-foreground">
+                            {cv.scoreConfiance}%
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleOpenEdit(cv)}
-                            className="h-8 w-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
-                            title="Vérifier et corriger"
-                            aria-label="Corriger"
+                            onClick={() => handleOpenView(cv)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            title="Aperçu du document"
+                            aria-label="Aperçu"
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
+
+                          {cv.statut === "a_valider" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEdit(cv)}
+                              className="h-8 w-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                              title="Vérifier et corriger"
+                              aria-label="Corriger"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile (<md) : liste de cartes empilées, tableau 5 colonnes trop dense pour un petit écran */}
+            <div className="md:hidden divide-y divide-border">
+              {paginatedCvs.map((cv) => (
+                <div key={cv.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold text-foreground">{cv.nomFichier}</p>
+                        {cv.extrait?.nom && (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {cv.extrait.nom} {cv.extrait.poste ? `• ${cv.extrait.poste}` : ""}
+                          </p>
                         )}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenView(cv)}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                        title="Aperçu du document"
+                        aria-label="Aperçu"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+
+                      {cv.statut === "a_valider" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(cv)}
+                          className="h-8 w-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                          title="Vérifier et corriger"
+                          aria-label="Corriger"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    {cv.statut === "ok" && (
+                      <Badge
+                        variant="outline"
+                        className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-semibold gap-1 text-[11px]"
+                      >
+                        <CheckCircle2 className="h-3 w-3" /> Conforme
+                      </Badge>
+                    )}
+                    {cv.statut === "a_valider" && (
+                      <Badge
+                        variant="outline"
+                        className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-semibold gap-1 text-[11px]"
+                      >
+                        <Clock className="h-3 w-3" /> À valider (
+                        {cv.champsAVerifier.length})
+                      </Badge>
+                    )}
+                    {cv.statut === "echec" && (
+                      <Badge
+                        variant="outline"
+                        className="bg-destructive/10 text-destructive border-destructive/30 font-semibold gap-1 text-[11px]"
+                      >
+                        <XCircle className="h-3 w-3" /> Échec OCR
+                      </Badge>
+                    )}
+                    {cv.statut === "en_cours" && (
+                      <Badge
+                        variant="outline"
+                        className="bg-primary/10 text-primary border-primary/30 font-semibold gap-1 text-[11px] animate-pulse"
+                      >
+                        <RefreshCw className="h-3 w-3 animate-spin" /> En cours d&apos;analyse
+                      </Badge>
+                    )}
+
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                      {cv.dateUpload}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <ScoreBadge value={cv.scoreConfiance} size="sm" showLabel={false} />
+                    <span className="text-xs font-mono font-medium text-foreground">
+                      {cv.scoreConfiance}% de confiance
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {/* Pagination si plus de 10 lignes */}
             {totalPages > 1 && (
